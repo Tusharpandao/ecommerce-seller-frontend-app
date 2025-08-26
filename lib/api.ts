@@ -1,10 +1,10 @@
 import axios, { AxiosInstance, AxiosResponse } from 'axios';
-import { 
-  ApiResponse, 
-  PaginatedResponse, 
-  User, 
-  Product, 
-  Category, 
+import {
+  ApiResponse,
+  PaginatedResponse,
+  User,
+  Product,
+  Category,
   Order,
   LoginRequest,
   RegisterRequest,
@@ -42,7 +42,7 @@ class ApiClient {
         if (error.response?.status === 401) {
           // Clear token on unauthorized
           this.clearToken();
-          
+
           // Only redirect to login if not already on login or register page
           const currentPath = window.location.pathname;
           if (!currentPath.includes('/login') && !currentPath.includes('/register')) {
@@ -79,7 +79,7 @@ class ApiClient {
     try {
       const response: AxiosResponse<ApiResponse<T>> = await this.client(config);
       console.log("response", response);
-      
+
       return response.data;
     } catch (error: any) {
       return {
@@ -96,12 +96,12 @@ class ApiClient {
       url: '/auth/login',
       data,
     });
-    
+
     // Store token on successful login
     if (response.success && response.data?.token) {
       this.setToken(response.data.token);
     }
-    
+
     return response;
   }
 
@@ -111,12 +111,12 @@ class ApiClient {
       url: '/auth/register',
       data,
     });
-    
+
     // Store token on successful registration
     if (response.success && response.data?.token) {
       this.setToken(response.data.token);
     }
-    
+
     return response;
   }
 
@@ -126,12 +126,12 @@ class ApiClient {
       url: '/auth/google',
       data: { token },
     });
-    
+
     // Store token on successful Google auth
     if (response.success && response.data?.token) {
       this.setToken(response.data.token);
     }
-    
+
     return response;
   }
 
@@ -148,15 +148,37 @@ class ApiClient {
       method: 'POST',
       url: '/auth/logout',
     });
-    
+
     // Clear token on logout
     this.clearToken();
-    
+
     return response;
   }
 
   // Product APIs
-  
+  async getProducts(page: number = 1, limit: number = 12, filters?: SearchFilters): Promise<ApiResponse<PaginatedResponse<Product>>> {
+    const params = new URLSearchParams();
+    params.append('page', page.toString());
+    params.append('limit', limit.toString());
+    if (filters) {
+      for (const key in filters) {
+        if (filters[key as keyof SearchFilters] !== undefined) {
+          params.append(key, String(filters[key as keyof SearchFilters]));
+        }
+      }
+    }
+    return this.request({
+      method: 'GET',
+      url: `/products?${params.toString()}`,
+    });
+  }
+
+  async getProduct(id: string): Promise<ApiResponse<Product>> {
+    return this.request({
+      method: 'GET',
+      url: `/products/${id}`,
+    });
+  }
 
   async createProduct(data: ProductRequest): Promise<ApiResponse<Product>> {
     return this.request({
@@ -182,125 +204,93 @@ class ApiClient {
   }
 
   // Category APIs
+  // console.log('Fetching categories from /categories');
   async getCategories(): Promise<ApiResponse<Category[]>> {
-    try {
-      console.log('Fetching categories from /categories/simple');
-      const response = await this.request<Category[]>({
-        method: 'GET',
-        url: '/categories/simple',
-      });
-      
-      if (response.success && response.data) {
-        console.log(`Successfully fetched ${response.data.length} categories`);
-        // Validate that we have proper Category objects
-        const validCategories = response.data.filter(cat => 
-          cat && typeof cat === 'object' && 
-          typeof cat.id === 'string' && 
-          typeof cat.name === 'string'
-        );
-        
-        if (validCategories.length !== response.data.length) {
-          console.warn(`Filtered out ${response.data.length - validCategories.length} invalid categories`);
-        }
-        
-        return {
-          success: true,
-          data: validCategories,
-          message: `Successfully fetched ${validCategories.length} categories`
-        };
-      }
-      
-      return response;
-    } catch (error) {
-      console.error('Error fetching categories:', error);
-      return {
-        success: false,
-        error: 'Failed to fetch categories',
-      };
-    }
+    return this.request<Category[]>({
+      method: 'GET',
+      url: '/categories',
+    });
   }
-
   async createCategory(data: { name: string; description?: string }): Promise<ApiResponse<Category>> {
     return this.request({
       method: 'POST',
       url: '/categories',
       data,
-    });
-  }
+      });
+    }
 
   async updateCategory(id: string, data: { name: string; description?: string }): Promise<ApiResponse<Category>> {
-    return this.request({
-      method: 'PUT',
-      url: `/categories/${id}`,
-      data,
-    });
-  }
+      return this.request({
+        method: 'PUT',
+        url: `/categories/${id}`,
+        data,
+      });
+    }
 
   async deleteCategory(id: string): Promise<ApiResponse<{ message: string }>> {
-    return this.request({
-      method: 'DELETE',
-      url: `/categories/${id}`,
-    });
-  }
+      return this.request({
+        method: 'DELETE',
+        url: `/categories/${id}`,
+      });
+    }
 
-  
+
 
   // Order APIs
   async getOrders(page: number = 1, limit: number = 10): Promise<ApiResponse<PaginatedResponse<Order>>> {
-    return this.request({
-      method: 'GET',
-      url: `/orders?page=${page}&limit=${limit}`,
-    });
-  }
+      return this.request({
+        method: 'GET',
+        url: `/orders?page=${page}&limit=${limit}`,
+      });
+    }
 
   async createOrder(data: { items: { productId: string; quantity: number }[]; shippingAddress: any }): Promise<ApiResponse<Order>> {
-    return this.request({
-      method: 'POST',
-      url: '/orders',
-      data,
-    });
-  }
+      return this.request({
+        method: 'POST',
+        url: '/orders',
+        data,
+      });
+    }
 
   async updateOrderStatus(id: string, data: OrderStatusRequest): Promise<ApiResponse<Order>> {
-    return this.request({
-      method: 'PUT',
-      url: `/orders/${id}/status`,
-      data,
-    });
-  }
+      return this.request({
+        method: 'PUT',
+        url: `/orders/${id}/status`,
+        data,
+      });
+    }
 
   // User APIs (Admin only)
   async getUsers(page: number = 1, limit: number = 10): Promise<ApiResponse<PaginatedResponse<User>>> {
-    return this.request({
-      method: 'GET',
-      url: `/users?page=${page}&limit=${limit}`,
-    });
-  }
+      return this.request({
+        method: 'GET',
+        url: `/users?page=${page}&limit=${limit}`,
+      });
+    }
 
   async blockUser(id: string): Promise<ApiResponse<User>> {
-    return this.request({
-      method: 'PUT',
-      url: `/users/${id}/block`,
-      data: { blocked: true },
-    });
-  }
+      return this.request({
+        method: 'PUT',
+        url: `/users/${id}/block`,
+        data: { blocked: true },
+      });
+    }
 
   async unblockUser(id: string): Promise<ApiResponse<User>> {
-    return this.request({
-      method: 'PUT',
-      url: `/users/${id}/block`,
-      data: { blocked: false },
-    });
-  }
+      return this.request({
+        method: 'PUT',
+        url: `/users/${id}/unblock`,
+      });
+    }
 
   // Get current user
   async getCurrentUser(): Promise<ApiResponse<User>> {
-    return this.request({
-      method: 'GET',
-      url: '/auth/me',
-    });
+      return this.request({
+        method: 'GET',
+        url: '/auth/me',
+      });
+    }
   }
-}
 
 export const apiClient = new ApiClient();
 export default apiClient;

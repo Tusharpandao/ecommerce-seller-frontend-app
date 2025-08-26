@@ -4,57 +4,42 @@ import { useState } from 'react';
 import AdminDashboardLayout from '@/components/layout/AdminDashboardLayout';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api';
-import { User } from '@/lib/types';
+import { Product } from '@/lib/types';
 import toast from 'react-hot-toast';
-import { UserCheck, UserX } from 'lucide-react';
+import { CheckCircle, XCircle } from 'lucide-react';
 
-export default function AdminManageSellersPage() {
+export default function AdminProductApprovalsPage() {
   const queryClient = useQueryClient();
   const [currentPage, setCurrentPage] = useState(1);
-  const usersPerPage = 10;
+  const productsPerPage = 10;
 
-  // Fetch users
-  const { data: usersData, isLoading, error } = useQuery({
-    queryKey: ['users', currentPage],
-    queryFn: () => apiClient.getUsers(currentPage, usersPerPage),
+  // Fetch products (assuming admin can see all products, including inactive ones)
+  const { data: productsData, isLoading, error } = useQuery({
+    queryKey: ['products', currentPage],
+    queryFn: () => apiClient.getProducts(currentPage, productsPerPage),
     keepPreviousData: true,
   });
 
-  const users = usersData?.data?.data || [];
-  const totalPages = usersData?.data?.pagination?.totalPages || 1;
+  const products = productsData?.data?.data || [];
+  const totalPages = productsData?.data?.pagination?.totalPages || 1;
 
-  // Mutations for blocking/unblocking users
-  const blockUserMutation = useMutation({
-    mutationFn: apiClient.blockUser,
+  // Mutation for updating product status (approving/rejecting)
+  const updateProductStatusMutation = useMutation({
+    mutationFn: ({ id, isActive }: { id: string; isActive: boolean }) =>
+      apiClient.updateProduct(id, { isActive }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['users'] });
-      toast.success('User blocked successfully!');
+      queryClient.invalidateQueries({ queryKey: ['products'] });
+      toast.success('Product status updated successfully!');
     },
     onError: (err: any) => {
-      toast.error(`Error blocking user: ${err.message || err.error}`);
+      toast.error(`Error updating product status: ${err.message || err.error}`);
     },
   });
 
-  const unblockUserMutation = useMutation({
-    mutationFn: apiClient.unblockUser,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['users'] });
-      toast.success('User unblocked successfully!');
-    },
-    onError: (err: any) => {
-      toast.error(`Error unblocking user: ${err.message || err.error}`);
-    },
-  });
-
-  const handleBlockUser = (id: string) => {
-    if (confirm('Are you sure you want to block this user?')) {
-      blockUserMutation.mutate(id);
-    }
-  };
-
-  const handleUnblockUser = (id: string) => {
-    if (confirm('Are you sure you want to unblock this user?')) {
-      unblockUserMutation.mutate(id);
+  const handleToggleProductStatus = (id: string, currentStatus: boolean) => {
+    const newStatus = !currentStatus;
+    if (confirm(`Are you sure you want to ${newStatus ? 'approve' : 'reject'} this product?`)) {
+      updateProductStatusMutation.mutate({ id, isActive: newStatus });
     }
   };
 
@@ -62,7 +47,7 @@ export default function AdminManageSellersPage() {
     return (
       <AdminDashboardLayout>
         <div className="flex justify-center items-center h-64">
-          <p className="text-lg text-gray-600">Loading users...</p>
+          <p className="text-lg text-gray-600">Loading products for approval...</p>
         </div>
       </AdminDashboardLayout>
     );
@@ -71,56 +56,57 @@ export default function AdminManageSellersPage() {
   if (error) {
     return (
       <AdminDashboardLayout>
-        <div className="text-red-600">Error loading users: {error.message}</div>
+        <div className="text-red-600">Error loading products: {error.message}</div>
       </AdminDashboardLayout>
     );
   }
 
   return (
     <AdminDashboardLayout>
-      <h1 className="text-2xl font-bold text-gray-800 mb-6">Manage Users</h1>
+      <h1 className="text-2xl font-bold text-gray-800 mb-6">Product Approvals</h1>
 
       <div className="bg-white shadow-md rounded-lg overflow-hidden">
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
+              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Image</th>
               <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
+              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Seller</th>
               <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
               <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {users.length === 0 ? (
+            {products.length === 0 ? (
               <tr>
                 <td colSpan={5} className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">
-                  No users found.
+                  No products awaiting approval.
                 </td>
               </tr>
             ) : (
-              users.map((user) => (
-                <tr key={user.id}>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{user.email}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{user.firstName} {user.lastName}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{user.role}</td>
+              products.map((product) => (
+                <tr key={product.id}>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <img src={product.images[0] || '/placeholder-product.svg'} alt={product.name} className="h-10 w-10 rounded-md object-cover" />
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{product.name}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{product.seller.firstName} {product.seller.lastName}</td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                      user.isBlocked ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'
+                      product.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
                     }`}>
-                      {user.isBlocked ? 'Blocked' : 'Active'}
+                      {product.isActive ? 'Approved' : 'Pending'}
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    {user.isBlocked ? (
-                      <button onClick={() => handleUnblockUser(user.id)} className="text-green-600 hover:text-green-900 mr-3">
-                        <UserCheck size={18} />
-                      </button>
-                    ) : (
-                      <button onClick={() => handleBlockUser(user.id)} className="text-red-600 hover:text-red-900 mr-3">
-                        <UserX size={18} />
-                      </button>
-                    )}
+                    <button
+                      onClick={() => handleToggleProductStatus(product.id, product.isActive)}
+                      className={`text-white px-3 py-1 rounded-md ${
+                        product.isActive ? 'bg-red-500 hover:bg-red-600' : 'bg-green-500 hover:bg-green-600'
+                      }`}
+                    >
+                      {product.isActive ? 'Reject' : 'Approve'}
+                    </button>
                   </td>
                 </tr>
               ))
