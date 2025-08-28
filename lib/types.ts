@@ -7,11 +7,30 @@ export interface User {
   lastName: string;
   role: UserRole;
   isBlocked: boolean;
+  emailVerified?: boolean;
+  phoneNumber?: string;
+  profileImage?: string | null;
   createdAt: string;
   updatedAt: string;
 }
 
-export interface Product {
+export interface AuthResponse {
+  user: User;
+  token: string;
+  refreshToken: string;
+  tokenType: string;
+  expiresIn: number;
+}
+
+export interface ProductImage {
+  id: string;
+  imageUrl: string;
+  altText: string;
+  isPrimary: boolean;
+  sortOrder: number;
+}
+
+export interface Product { 
   id: string;
   name: string;
   description: string;
@@ -22,7 +41,15 @@ export interface Product {
   barcode?: string;
   weight?: number;
   dimensions?: string;
-  images: string[];
+  brand?: string;
+  tags?: string[];
+  discountPercentage?: number;
+  warrantyInformation?: string;
+  shippingInformation?: string;
+  returnPolicy?: string;
+  minimumOrderQuantity?: number;
+  availabilityStatus?: string;
+  images: ProductImage[];
   category: Category;
   seller: User;
   stockQuantity: number;
@@ -33,6 +60,7 @@ export interface Product {
   reviewCount: number;
   isActive: boolean;
   isFeatured?: boolean;
+  variants?: any[];
   createdAt: string;
   updatedAt: string;
 }
