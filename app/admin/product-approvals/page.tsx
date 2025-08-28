@@ -11,6 +11,7 @@ import { CheckCircle, XCircle } from 'lucide-react';
 export default function AdminProductApprovalsPage() {
   const queryClient = useQueryClient();
   const [currentPage, setCurrentPage] = useState(1);
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const productsPerPage = 10;
 
   // Fetch products (assuming admin can see all products, including inactive ones)
@@ -87,9 +88,18 @@ export default function AdminProductApprovalsPage() {
               products.map((product) => (
                 <tr key={product.id}>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <img src={product.images[0] || '/placeholder-product.svg'} alt={product.name} className="h-10 w-10 rounded-md object-cover" />
+                    <button onClick={() => setSelectedProduct(product)} className="block">
+                      <img src={product.thumbnail || '/placeholder-product.svg'} alt={product.name} className="h-10 w-10 rounded-md object-cover" />
+                    </button>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{product.name}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                    <button 
+                      onClick={() => setSelectedProduct(product)}
+                      className="text-blue-600 hover:text-blue-800"
+                    >
+                      {product.name}
+                    </button>
+                  </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{product.seller.firstName} {product.seller.lastName}</td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
@@ -114,6 +124,15 @@ export default function AdminProductApprovalsPage() {
           </tbody>
         </table>
       </div>
+
+      {/* Product Modal */}
+      {selectedProduct && (
+        <ProductModal
+          product={selectedProduct}
+          isOpen={!!selectedProduct}
+          onClose={() => setSelectedProduct(null)}
+        />
+      )}
 
       {/* Pagination */}
       {totalPages > 1 && (
